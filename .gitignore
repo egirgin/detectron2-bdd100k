@@ -1,2 +1,4 @@
 *pycache*
 /output/
+.idea
+/local.sh

@@ -1,0 +1,1 @@
+!python train.py --trainer "default" --bitmap_path "subdataset/bitmaps" --images_path "subdataset/imgs"
