@@ -35,6 +35,7 @@ argparser.add_argument("-t", "--trainer", choices=["simple", "default", "custom"
 argparser.add_argument("-b", "--bitmap_path")
 argparser.add_argument("-i", "--images_path")
 argparser.add_argument("--sample", action="store_true")
+argparser.add_argument("--resume", action="store_true")
 argparser.add_argument("-s", "--shrink", default=0, type=int)
 
 args = argparser.parse_args()
@@ -46,6 +47,8 @@ show_sample = args.sample
 bitmap_path = args.bitmap_path
 
 images_path = args.images_path
+
+resume = False # args.resume
 
 ########################## SUB DATASET ###############################################
 
@@ -117,6 +120,12 @@ cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3  # only has one class (ballon). (see https:/
 if not torch.cuda.is_available():
     cfg.MODEL.DEVICE = "cpu"
 
+if resume:
+    pass
+else:
+    shutil.rmtree(cfg.OUTPUT_DIR, ignore_errors=True)
+
+
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
 if args.trainer == "simple":
@@ -148,7 +157,7 @@ elif args.trainer == "custom":
 
     trainer.set_datasets(trainset="train", valset="val")
 
-    trainer.train()
+    trainer.train(300)
 
 
 

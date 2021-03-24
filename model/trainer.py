@@ -1,6 +1,9 @@
 import logging
 import os
+import shutil
 from collections import OrderedDict
+
+import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel
 
@@ -12,6 +15,7 @@ from detectron2.data import (
     build_detection_test_loader,
     build_detection_train_loader,
 )
+from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
 from detectron2.evaluation import (
     CityscapesInstanceEvaluator,
@@ -59,7 +63,7 @@ class MyTrainer:
 
         self.build_model(self.cfg)
 
-    def train(self, epochs):
+    def train(self, epochs, resume=False):
         if self.model:
             # Switch to training mode
             self.model.train()
@@ -72,15 +76,29 @@ class MyTrainer:
 
             train_loader = build_detection_train_loader(self.cfg)
 
+            val_loader = build_detection_test_loader(self.cfg, self.cfg.DATASETS.TEST[0])
+
+            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm"), False, output_dir=self.cfg.OUTPUT_DIR + "/eval")
+
+            writers = default_writers(self.cfg.OUTPUT_DIR, epochs)
+
             with EventStorage(start_iter=0) as storage:
                 for data, iteration in zip(train_loader, range(0, epochs)):
-                    storage.iter = iteration
 
                     loss_dict = self.model(data)
 
+                    #squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
+
+                    #losses = torch.sqrt(torch.mean(squared))
+
                     losses = sum(loss_dict.values())
 
-                    print("Iteration: {}, Loss: {}".format(iteration, losses))
+                    for key, value in loss_dict.items():
+                        storage.put_scalar(key, value)
+
+                    storage.put_scalar("RMSloss", losses)
+
+                    storage.put_scalar("lr", optimizer.param_groups[0]["lr"])
 
                     assert torch.isfinite(losses).all(), loss_dict
 
@@ -91,16 +109,35 @@ class MyTrainer:
                     optimizer.step()
 
 
+                    if (iteration + 1) % 20 == 0:
+                        eval_results = self.eval(val_loader)
 
+                        storage.put_scalar("Accuracy/bbox_mAP", eval_results["bbox"]["AP"])
+                        storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_results["bbox"]["AP-main_path"])
+                        storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_results["bbox"]["AP-alt_path"])
 
+                        storage.put_scalar("Accuracy/segm_mAP", eval_results["segm"]["AP"])
+                        storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_results["segm"]["AP-main_path"])
+                        storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_results["segm"]["AP-alt_path"])
 
+                    storage.step()
+
+                    for writer in writers:
+                        writer.write()
 
 
         else:
             print("Please build the model first!")
 
-    def eval(self):
-        pass
+
+    def eval(self, val_loader):
+
+        eval_results = inference_on_dataset(
+            self.model,
+            val_loader,
+            self.evaluator)
+
+        return eval_results
 
     def test(self):
         pass
