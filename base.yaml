@@ -31,7 +31,7 @@ MODEL:
     POOLER_RESOLUTION: 14
 DATASETS:
   TRAIN: ("train",)
-  TEST: ("val",)
+  TEST: ()
 SOLVER:
   IMS_PER_BATCH: 4
   BASE_LR: 0.02

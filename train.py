@@ -21,8 +21,11 @@ from detectron2.solver import build_optimizer
 
 from detectron2.utils.visualizer import Visualizer, ColorMode
 from detectron2.data import MetadataCatalog, DatasetCatalog, build_detection_train_loader, build_detection_test_loader
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+
 
 from utils.dataloader import get_dataset_dicts,create_subdataset
+from model.trainer import MyTrainer
 
 ########################## ARG PARSE #################################################
 
@@ -130,10 +133,22 @@ if args.trainer == "simple":
 
 elif args.trainer == "default":
     trainer = DefaultTrainer(cfg)
+    trainer.build_evaluator()
     trainer.resume_or_load(resume=False)
     trainer.train()
+
+    evaluator = COCOEvaluator("val", ("bbox", "segm"), False, output_dir="./output/")
+    val_loader = build_detection_test_loader(cfg, "val")
+    print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
-    pass
+
+    trainer = MyTrainer()
+
+    trainer.build_model(cfg)
+
+    trainer.set_datasets(trainset="train", valset="val")
+
+    trainer.train()
 
 
 
