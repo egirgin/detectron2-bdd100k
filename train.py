@@ -157,7 +157,7 @@ elif args.trainer == "custom":
 
     trainer.set_datasets(trainset="train", valset="val")
 
-    trainer.train(300)
+    trainer.train(300, resume=resume)
 
 
 

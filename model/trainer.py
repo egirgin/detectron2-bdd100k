@@ -36,6 +36,8 @@ from detectron2.utils.events import EventStorage
 logger = logging.getLogger("detectron2")
 
 
+# TODO: checkpointer, rms loss, LR scheduler, tensorboard accuracy printing, resume (both weights and the dataset),
+
 class MyTrainer:
 
     def __init__(self):
@@ -73,6 +75,18 @@ class MyTrainer:
             #optimizer = torch.optim.Adam()
 
             #scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
+
+
+            checkpointer = DetectionCheckpointer(
+                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer = optimizer
+            )
+
+            load = checkpointer.resume_or_load(self.cfg.OUTPUT_DIR + "/checkpoint", resume=False)
+            print(load)
+
+            periodic_checkpointer = PeriodicCheckpointer(
+                checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=epochs, max_to_keep=3, file_prefix="test_"
+            )
 
             train_loader = build_detection_train_loader(self.cfg)
 
@@ -124,6 +138,8 @@ class MyTrainer:
 
                     for writer in writers:
                         writer.write()
+
+                    periodic_checkpointer.step(iteration)
 
 
         else:
