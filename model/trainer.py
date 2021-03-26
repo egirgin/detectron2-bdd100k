@@ -39,7 +39,6 @@ from detectron2.utils.events import EventStorage
 
 logger = logging.getLogger("detectron2")
 
-
 from utils.dataloader import get_dataset_dicts
 
 
@@ -78,14 +77,13 @@ class MyTrainer:
             self.model.train()
 
             # Build Optimizer (SGD)
-            optimizer = build_optimizer(self.cfg, self.model) # Returns SGD
-            #optimizer = torch.optim.Adam()
+            optimizer = build_optimizer(self.cfg, self.model)  # Returns SGD
+            # optimizer = torch.optim.Adam()
 
-            #scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
-
+            # scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
 
             checkpointer = DetectionCheckpointer(
-                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer = optimizer
+                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer
             )
             if resume:
                 if checkpointer.has_checkpoint():
@@ -112,22 +110,22 @@ class MyTrainer:
 
             val_loader_2 = build_detection_train_loader(
                 self.cfg,
-                dataset = DatasetCatalog.get("val")
+                dataset=DatasetCatalog.get("val")
             )
 
-            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm"), False, output_dir=self.cfg.OUTPUT_DIR + "/eval")
+            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm"), False,
+                                           output_dir=self.cfg.OUTPUT_DIR + "/eval")
 
             writers = default_writers(self.cfg.OUTPUT_DIR, epochs)
 
             with EventStorage(start_iter=start_iter) as storage:
                 for data, iteration in zip(train_loader, range(start_iter, epochs)):
 
-                    print(data[0]["instances"])
                     loss_dict = self.model(data)
 
-                    #squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
+                    # squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
 
-                    #losses = torch.sqrt(torch.mean(squared))
+                    # losses = torch.sqrt(torch.mean(squared))
 
                     losses = sum(loss_dict.values())
 
@@ -146,19 +144,19 @@ class MyTrainer:
 
                     optimizer.step()
 
-
                     if (iteration + 1) % 5 == 0:
-                        eval_results = self.eval(val_loader, val_loader_2)
+                        eval_acc, eval_loss = self.eval(val_loader, val_loader_2)
 
-                        print(eval_results)
+                        print(eval_acc)
+                        print(eval_loss)
 
-                        storage.put_scalar("Accuracy/bbox_mAP", eval_results["bbox"]["AP"])
-                        storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_results["bbox"]["AP-main_path"])
-                        storage.put_scalar("Accuracy/bbox_mAP_alt_pth", eval_results["bbox"]["AP-alt_path"])
+                        storage.put_scalar("Accuracy/bbox_mAP", eval_acc["bbox"]["AP"])
+                        storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_acc["bbox"]["AP-main_path"])
+                        storage.put_scalar("Accuracy/bbox_mAP_alt_pth", eval_acc["bbox"]["AP-alt_path"])
 
-                        storage.put_scalar("Accuracy/segm_mAP", eval_results["segm"]["AP"])
-                        storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_results["segm"]["AP-main_path"])
-                        storage.put_scalar("Accuracy/segm_mAP_alt_pth", eval_results["segm"]["AP-alt_path"])
+                        storage.put_scalar("Accuracy/segm_mAP", eval_acc["segm"]["AP"])
+                        storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_acc["segm"]["AP-main_path"])
+                        storage.put_scalar("Accuracy/segm_mAP_alt_pth", eval_acc["segm"]["AP-alt_path"])
 
                     storage.step()
 
@@ -167,10 +165,8 @@ class MyTrainer:
 
                     periodic_checkpointer.step(iteration)
 
-
         else:
             print("Please build the model first!")
-
 
     def eval(self, val_loader, val_loader_2):
 
@@ -179,19 +175,15 @@ class MyTrainer:
             val_loader,
             self.evaluator)
 
-
+        total_loss = {}
 
         with torch.no_grad():
             for val_sample in tqdm(val_loader_2):
-                print(val_sample[0]["instances"])
-
                 loss_dict = self.model(val_sample)
-                print(loss_dict.items())
+                total_loss += loss_dict
 
-        return eval_results
+        return eval_results, total_loss
 
     def test(self):
 
-
         pass
-
