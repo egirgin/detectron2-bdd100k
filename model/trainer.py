@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 from collections import OrderedDict
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -172,22 +173,22 @@ class MyTrainer:
 
 
     def eval(self, val_loader, val_loader_2):
-        """
+
         eval_results = inference_on_dataset(
             self.model,
             val_loader,
             self.evaluator)
-        """
+
 
 
         with torch.no_grad():
-            for val_sample in val_loader_2:
+            for val_sample in tqdm(val_loader_2):
                 print(val_sample[0]["instances"])
 
                 loss_dict = self.model(val_sample)
                 print(loss_dict.items())
 
-        return None
+        return eval_results
 
     def test(self):
 
