@@ -80,12 +80,17 @@ class MyTrainer:
             checkpointer = DetectionCheckpointer(
                 self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer = optimizer
             )
-
-            load = checkpointer.resume_or_load(self.cfg.OUTPUT_DIR + "/checkpoint", resume=False)
-            print(load)
+            if resume:
+                if checkpointer.has_checkpoint():
+                    latest_str = checkpointer.get_checkpoint_file()
+                    load = checkpointer.resume_or_load(self.cfg.OUTPUT_DIR + "/checkpoint/" + latest_str, resume=False)
+                    print(load)
+                else:
+                    print("Error! There is not any checkpoints. Training from scratch!")
 
             periodic_checkpointer = PeriodicCheckpointer(
-                checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=epochs, max_to_keep=3, file_prefix="test_"
+                checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD,
+                max_iter=epochs, max_to_keep=3, file_prefix="test"
             )
 
             train_loader = build_detection_train_loader(self.cfg)

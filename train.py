@@ -48,7 +48,7 @@ bitmap_path = args.bitmap_path
 
 images_path = args.images_path
 
-resume = False # args.resume
+resume = args.resume
 
 ########################## SUB DATASET ###############################################
 
@@ -127,6 +127,7 @@ else:
 
 
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+os.makedirs(cfg.OUTPUT_DIR + "/checkpoint", exist_ok=True)
 
 if args.trainer == "simple":
 
