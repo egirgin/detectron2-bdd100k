@@ -24,7 +24,7 @@ from detectron2.data import MetadataCatalog, DatasetCatalog, build_detection_tra
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
 
-from utils.dataloader import get_dataset_dicts,create_subdataset
+from utils.dataloader import get_dataset_dicts, create_subdataset
 from model.trainer import MyTrainer
 
 ########################## ARG PARSE #################################################
@@ -86,10 +86,10 @@ MetadataCatalog.get("val").set(thing_classes=["main_path", "error", "alt_path"])
 metadata_val = MetadataCatalog.get("val")
 
 if show_sample:
-    dataset_dicts = get_dataset_dicts(images_path + "/train", bitmap_path + "/train")
+    dataset_dicts = get_dataset_dicts(images_path + "/val", bitmap_path + "/val")
     for d in random.sample(dataset_dicts, 5):
         img = cv2.imread(d["file_name"])
-        visualizer = Visualizer(img[:, :, ::-1], metadata=metadata_train, scale=0.5)
+        visualizer = Visualizer(img[:, :, ::-1], metadata=metadata_val, scale=0.5)
         out = visualizer.draw_dataset_dict(d)
         cv2.imshow(d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
 

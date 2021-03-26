@@ -14,6 +14,9 @@ from detectron2.data import (
     MetadataCatalog,
     build_detection_test_loader,
     build_detection_train_loader,
+    get_detection_dataset_dicts,
+    DatasetMapper,
+    DatasetCatalog
 )
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
@@ -34,6 +37,9 @@ from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
 
 logger = logging.getLogger("detectron2")
+
+
+from utils.dataloader import get_dataset_dicts
 
 
 # TODO: checkpointer, rms loss, LR scheduler, tensorboard accuracy printing, resume (both weights and the dataset),
@@ -83,10 +89,16 @@ class MyTrainer:
             if resume:
                 if checkpointer.has_checkpoint():
                     latest_str = checkpointer.get_checkpoint_file()
-                    load = checkpointer.resume_or_load(self.cfg.OUTPUT_DIR + "/checkpoint/" + latest_str, resume=False)
-                    print(load)
+                    print("Loading checkpoint: {}".format(latest_str))
+                    load = checkpointer.resume_or_load(latest_str, resume=resume)
+                    print(load.keys())
+                    start_iter = load["iteration"] + 1
+                    print("Starting Iteration : {}".format(start_iter))
                 else:
                     print("Error! There is not any checkpoints. Training from scratch!")
+
+            else:
+                start_iter = 0
 
             periodic_checkpointer = PeriodicCheckpointer(
                 checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD,
@@ -97,13 +109,19 @@ class MyTrainer:
 
             val_loader = build_detection_test_loader(self.cfg, self.cfg.DATASETS.TEST[0])
 
+            val_loader_2 = build_detection_train_loader(
+                self.cfg,
+                dataset = DatasetCatalog.get("val")
+            )
+
             self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm"), False, output_dir=self.cfg.OUTPUT_DIR + "/eval")
 
             writers = default_writers(self.cfg.OUTPUT_DIR, epochs)
 
-            with EventStorage(start_iter=0) as storage:
-                for data, iteration in zip(train_loader, range(0, epochs)):
+            with EventStorage(start_iter=start_iter) as storage:
+                for data, iteration in zip(train_loader, range(start_iter, epochs)):
 
+                    print(data[0]["instances"])
                     loss_dict = self.model(data)
 
                     #squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
@@ -128,16 +146,18 @@ class MyTrainer:
                     optimizer.step()
 
 
-                    if (iteration + 1) % 20 == 0:
-                        eval_results = self.eval(val_loader)
+                    if (iteration + 1) % 5 == 0:
+                        eval_results = self.eval(val_loader, val_loader_2)
+
+                        print(eval_results)
 
                         storage.put_scalar("Accuracy/bbox_mAP", eval_results["bbox"]["AP"])
                         storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_results["bbox"]["AP-main_path"])
-                        storage.put_scalar("Accuracy/bbox_mAP_main_pth", eval_results["bbox"]["AP-alt_path"])
+                        storage.put_scalar("Accuracy/bbox_mAP_alt_pth", eval_results["bbox"]["AP-alt_path"])
 
                         storage.put_scalar("Accuracy/segm_mAP", eval_results["segm"]["AP"])
                         storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_results["segm"]["AP-main_path"])
-                        storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_results["segm"]["AP-alt_path"])
+                        storage.put_scalar("Accuracy/segm_mAP_alt_pth", eval_results["segm"]["AP-alt_path"])
 
                     storage.step()
 
@@ -151,15 +171,26 @@ class MyTrainer:
             print("Please build the model first!")
 
 
-    def eval(self, val_loader):
-
+    def eval(self, val_loader, val_loader_2):
+        """
         eval_results = inference_on_dataset(
             self.model,
             val_loader,
             self.evaluator)
+        """
 
-        return eval_results
+
+        with torch.no_grad():
+            for val_sample in val_loader_2:
+                print(val_sample[0]["instances"])
+
+                loss_dict = self.model(val_sample)
+                print(loss_dict.items())
+
+        return None
 
     def test(self):
+
+
         pass
 
