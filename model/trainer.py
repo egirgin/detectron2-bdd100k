@@ -135,7 +135,7 @@ class MyTrainer:
                 start_iter = 0
 
             periodic_checkpointer = PeriodicCheckpointer(
-                checkpointer, self.checkpoint_period,
+                checkpointer, self.checkpoint_period*train_size,
                 max_iter=train_iter, max_to_keep=3, file_prefix=self.name
             )
 
