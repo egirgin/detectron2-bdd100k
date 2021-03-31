@@ -31,6 +31,7 @@ from model.trainer import MyTrainer
 
 argparser = argparse.ArgumentParser()
 
+argparser.add_argument("-n", "--name")
 argparser.add_argument("-t", "--trainer", choices=["simple", "default", "custom"])
 argparser.add_argument("-b", "--bitmap_path")
 argparser.add_argument("-i", "--images_path")
@@ -161,7 +162,7 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.chekpoint_period, experiment_name="test_emre")
+    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.chekpoint_period, experiment_name=args.name)
 
     trainer.build_model(cfg)
 
