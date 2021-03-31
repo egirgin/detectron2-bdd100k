@@ -93,8 +93,7 @@ class MyTrainer:
             optimizer = build_optimizer(self.cfg, self.model)  # Returns SGD
             # optimizer = torch.optim.Adam()
 
-            # scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
-
+            scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
 
             train_set = get_detection_dataset_dicts("train", filter_empty=False)
 
@@ -119,7 +118,7 @@ class MyTrainer:
 
 
             checkpointer = DetectionCheckpointer(
-                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer
+                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer, scheduler=scheduler
             )
             if resume:
                 if checkpointer.has_checkpoint():
@@ -142,7 +141,7 @@ class MyTrainer:
 
             with EventStorage(start_iter=start_iter) as storage:
                 for data, iteration in zip(train_loader, range(start_iter, train_iter)):
-
+                    print("One epoch takes {} iterations.".format(train_size))
                     loss_dict = self.model(data)
 
                     # squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
@@ -165,6 +164,7 @@ class MyTrainer:
                     losses.backward()
 
                     optimizer.step()
+
 
                     if (iteration) % (self.eval_period * train_size) == 0:
                         eval_acc, eval_loss = self.eval(acc_loader, val_loader)
@@ -189,6 +189,7 @@ class MyTrainer:
                         writer.write()
 
                     periodic_checkpointer.step(iteration)
+                    scheduler.step()
 
         else:
             print("Please build the model first!")
