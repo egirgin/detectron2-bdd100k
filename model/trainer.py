@@ -17,8 +17,11 @@ from detectron2.data import (
     build_detection_train_loader,
     get_detection_dataset_dicts,
     DatasetMapper,
-    DatasetCatalog
+    DatasetCatalog,
 )
+
+
+
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
 from detectron2.evaluation import (
@@ -178,9 +181,14 @@ class MyTrainer:
         total_loss = {}
 
         with torch.no_grad():
-            for val_sample in tqdm(val_loader_2):
-                loss_dict = self.model(val_sample)
-                total_loss += loss_dict
+            with tqdm(total=len(val_loader_2)) as pbar:
+
+                for val_sample in val_loader_2:
+                    loss_dict = self.model(val_sample)
+                    #total_loss += loss_dict
+
+                    total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
+                    pbar.update(1)
 
         return eval_results, total_loss
 
