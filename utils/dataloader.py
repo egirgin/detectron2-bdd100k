@@ -10,7 +10,10 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
+import torch
+
 from detectron2.structures import BoxMode
+from detectron2.data import detection_utils as utils
 
 
 debug = False
@@ -169,3 +172,24 @@ def read_img(img_path, pad=1):
     padded_image = cv2.copyMakeBorder(rgb_img, pad, pad, pad, pad, cv2.BORDER_CONSTANT)
 
     return padded_image
+
+
+def mapper(sample):
+    image = utils.read_image(sample["file_name"], format="BGR")
+
+    image = image.copy()
+
+    # apply data augmentation here
+
+    auginput = image
+
+    image = torch.from_numpy(auginput.transpose(2, 0, 1))
+    annos = [
+        annotation
+        for annotation in sample.pop("annotations")
+    ]
+    return {
+        # create the format that the model expects
+        "image": image,
+        "instances": utils.annotations_to_instances(annos, image.shape[1:], mask_format="polygon")
+    }

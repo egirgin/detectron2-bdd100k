@@ -92,7 +92,8 @@ if show_sample:
         visualizer = Visualizer(img[:, :, ::-1], metadata=metadata_val, scale=0.5)
         out = visualizer.draw_dataset_dict(d)
         cv2.imshow(d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
-
+        os.makedirs("subdataset/samples", exist_ok=True)
+        cv2.imwrite("subdataset/samples/"+d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -152,13 +153,16 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
+    iter = 300
+    batch_size = 4
+
     trainer = MyTrainer()
 
     trainer.build_model(cfg)
 
     trainer.set_datasets(trainset="train", valset="val")
 
-    trainer.train(300, resume=resume)
+    trainer.train(iter, batch_size, resume=resume)
 
 
 

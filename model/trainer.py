@@ -20,7 +20,7 @@ from detectron2.data import (
     DatasetCatalog,
 )
 
-
+from utils.dataloader import mapper as custom_mapper
 
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
@@ -74,7 +74,7 @@ class MyTrainer:
 
         self.build_model(self.cfg)
 
-    def train(self, epochs, resume=False):
+    def train(self, epochs, batch_size, resume=False):
         if self.model:
             # Switch to training mode
             self.model.train()
@@ -107,16 +107,18 @@ class MyTrainer:
                 max_iter=epochs, max_to_keep=3, file_prefix="test"
             )
 
-            train_loader = build_detection_train_loader(self.cfg)
+            train_set = get_detection_dataset_dicts("train", filter_empty=False)
 
-            val_loader = build_detection_test_loader(self.cfg, self.cfg.DATASETS.TEST[0])
+            val_set = get_detection_dataset_dicts("val", filter_empty=False)
 
-            val_loader_2 = build_detection_train_loader(
-                self.cfg,
-                dataset=DatasetCatalog.get("val")
-            )
+            print(train_set[0].keys())
 
-            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm"), False,
+            train_loader = build_detection_train_loader(train_set, mapper=custom_mapper, aspect_ratio_grouping=False,
+                                                        total_batch_size=batch_size)
+            val_loader = build_detection_test_loader(val_set, mapper=custom_mapper)
+
+
+            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("segm"), False,
                                            output_dir=self.cfg.OUTPUT_DIR + "/eval")
 
             writers = default_writers(self.cfg.OUTPUT_DIR, epochs)
@@ -148,7 +150,7 @@ class MyTrainer:
                     optimizer.step()
 
                     if (iteration + 1) % 5 == 0:
-                        eval_acc, eval_loss = self.eval(val_loader, val_loader_2)
+                        eval_acc, eval_loss = self.eval(val_loader)
 
                         print(eval_acc)
                         print(eval_loss)
@@ -170,8 +172,11 @@ class MyTrainer:
 
         else:
             print("Please build the model first!")
+            
+    
 
-    def eval(self, val_loader, val_loader_2):
+
+    def eval(self, val_loader):
 
         eval_results = inference_on_dataset(
             self.model,
@@ -180,15 +185,14 @@ class MyTrainer:
 
         total_loss = {}
 
+        self.model.eval()
         with torch.no_grad():
-            with tqdm(total=len(val_loader_2)) as pbar:
+            for val in val_loader:
+                loss_dict = self.model(val)
 
-                for val_sample in val_loader_2:
-                    loss_dict = self.model(val_sample)
-                    #total_loss += loss_dict
+                total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
 
-                    total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
-                    pbar.update(1)
+        self.model.train()
 
         return eval_results, total_loss
 
