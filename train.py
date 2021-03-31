@@ -153,16 +153,16 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    iter = 300
+    epochs = 1
     batch_size = 4
 
     trainer = MyTrainer()
 
     trainer.build_model(cfg)
 
-    trainer.set_datasets(trainset="train", valset="val")
+    trainer.set_datasets(trainset="train", valset="val", testset="./subdataset/imgs/val")
 
-    trainer.train(iter, batch_size, resume=resume)
+    trainer.train(epochs, batch_size, resume=resume)
 
 
 

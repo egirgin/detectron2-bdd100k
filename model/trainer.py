@@ -3,6 +3,8 @@ import os
 import shutil
 from collections import OrderedDict
 from tqdm import tqdm
+import random
+import cv2
 
 import numpy as np
 import torch
@@ -24,6 +26,7 @@ from utils.dataloader import mapper as custom_mapper
 
 from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
+from detectron2.engine.defaults import DefaultPredictor
 from detectron2.evaluation import (
     CityscapesInstanceEvaluator,
     CityscapesSemSegEvaluator,
@@ -36,23 +39,28 @@ from detectron2.evaluation import (
     inference_on_dataset,
     print_csv_format,
 )
+from detectron2.utils.visualizer import Visualizer, ColorMode
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
+from detectron2.utils.visualizer import ColorMode
+
 
 logger = logging.getLogger("detectron2")
 
 from utils.dataloader import get_dataset_dicts
 
-
 # TODO: checkpointer, rms loss, LR scheduler, tensorboard accuracy printing, resume (both weights and the dataset),
+
+eval_period = 2
 
 class MyTrainer:
 
-    def __init__(self):
+    def __init__(self, eval_period = 5):
         self.testset = None
         self.cfg = None
         self.model = None
+        self.eval_period = eval_period
 
     def build_model(self, cfg):
 
@@ -75,6 +83,7 @@ class MyTrainer:
         self.build_model(self.cfg)
 
     def train(self, epochs, batch_size, resume=False):
+        global start_iter
         if self.model:
             # Switch to training mode
             self.model.train()
@@ -84,6 +93,29 @@ class MyTrainer:
             # optimizer = torch.optim.Adam()
 
             # scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
+
+
+            train_set = get_detection_dataset_dicts("train", filter_empty=False)
+
+            val_set = get_detection_dataset_dicts("val", filter_empty=False)
+
+            train_size = len(train_set)
+
+            train_iter = train_size * epochs
+
+            val_size = len(val_set)
+
+            train_loader = build_detection_train_loader(train_set, mapper=custom_mapper, aspect_ratio_grouping=False,
+                                                        total_batch_size=batch_size)
+            val_loader = build_detection_test_loader(val_set, mapper=custom_mapper)
+
+            acc_loader = build_detection_test_loader(self.cfg, self.cfg.DATASETS.TEST[0])
+
+            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm",), False,
+                                           output_dir=self.cfg.OUTPUT_DIR + "/eval")
+
+            writers = default_writers(self.cfg.OUTPUT_DIR, train_iter)
+
 
             checkpointer = DetectionCheckpointer(
                 self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer
@@ -104,27 +136,11 @@ class MyTrainer:
 
             periodic_checkpointer = PeriodicCheckpointer(
                 checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD,
-                max_iter=epochs, max_to_keep=3, file_prefix="test"
+                max_iter=train_iter, max_to_keep=3, file_prefix="test"
             )
 
-            train_set = get_detection_dataset_dicts("train", filter_empty=False)
-
-            val_set = get_detection_dataset_dicts("val", filter_empty=False)
-
-            print(train_set[0].keys())
-
-            train_loader = build_detection_train_loader(train_set, mapper=custom_mapper, aspect_ratio_grouping=False,
-                                                        total_batch_size=batch_size)
-            val_loader = build_detection_test_loader(val_set, mapper=custom_mapper)
-
-
-            self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("segm"), False,
-                                           output_dir=self.cfg.OUTPUT_DIR + "/eval")
-
-            writers = default_writers(self.cfg.OUTPUT_DIR, epochs)
-
             with EventStorage(start_iter=start_iter) as storage:
-                for data, iteration in zip(train_loader, range(start_iter, epochs)):
+                for data, iteration in zip(train_loader, range(start_iter, train_iter)):
 
                     loss_dict = self.model(data)
 
@@ -135,7 +151,7 @@ class MyTrainer:
                     losses = sum(loss_dict.values())
 
                     for key, value in loss_dict.items():
-                        storage.put_scalar(key, value)
+                        storage.put_scalar(key, value / batch_size)
 
                     storage.put_scalar("RMSloss", losses)
 
@@ -149,8 +165,8 @@ class MyTrainer:
 
                     optimizer.step()
 
-                    if (iteration + 1) % 5 == 0:
-                        eval_acc, eval_loss = self.eval(val_loader)
+                    if (iteration) % (self.eval_period * train_size) == 0:
+                        eval_acc, eval_loss = self.eval(acc_loader, val_loader)
 
                         print(eval_acc)
                         print(eval_loss)
@@ -163,6 +179,9 @@ class MyTrainer:
                         storage.put_scalar("Accuracy/segm_mAP_main_pth", eval_acc["segm"]["AP-main_path"])
                         storage.put_scalar("Accuracy/segm_mAP_alt_pth", eval_acc["segm"]["AP-alt_path"])
 
+                        for key, value in eval_loss.items():
+                            storage.put_scalar("ValLoss/{}".format(key), value / val_size)
+
                     storage.step()
 
                     for writer in writers:
@@ -172,30 +191,48 @@ class MyTrainer:
 
         else:
             print("Please build the model first!")
-            
-    
 
-
-    def eval(self, val_loader):
+    def eval(self, acc_loader, val_loader):
 
         eval_results = inference_on_dataset(
             self.model,
-            val_loader,
+            acc_loader,
             self.evaluator)
 
         total_loss = {}
 
-        self.model.eval()
+        # self.model.eval()
         with torch.no_grad():
             for val in val_loader:
                 loss_dict = self.model(val)
 
                 total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
 
-        self.model.train()
+        # self.model.train()
 
         return eval_results, total_loss
 
     def test(self):
+        self.cfg.MODEL.WEIGHTS = os.path.join(self.cfg.OUTPUT_DIR, "checkpoint/model_final.pth")  # path to the model we just trained
+        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
+
+        predictor = DefaultPredictor(self.cfg)
+
+        for img in random.sample(os.listdir(self.testset), 3):
+            im = cv2.imread(self.testset + "/" + img)
+            outputs = predictor(im)
+            v = Visualizer(im[:, :, ::-1],
+                           metadata=MetadataCatalog.get("train"),
+                           scale=0.5,
+                           instance_mode=ColorMode.IMAGE_BW
+                           # remove the colors of unsegmented pixels. This option is only available for segmentation models
+                           )
+            out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+            try:
+                cv2_imshow(out.get_image()[:, :, ::-1])
+            except:
+                cv2.imshow(out.get_image()[:, :, ::-1])
+
+
 
         pass
