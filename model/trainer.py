@@ -52,7 +52,6 @@ from utils.dataloader import get_dataset_dicts
 
 # TODO: checkpointer, rms loss, LR scheduler, tensorboard accuracy printing, resume (both weights and the dataset),
 
-eval_period = 2
 
 class MyTrainer:
 
@@ -228,10 +227,15 @@ class MyTrainer:
                            # remove the colors of unsegmented pixels. This option is only available for segmentation models
                            )
             out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+
+            os.makedirs(self.cfg.OUTPUT_DIR + "/results", exist_ok=True)
+
+            cv2.imwrite(self.cfg.OUTPUT_DIR + "/results/{}".format(img), out.get_image()[:, :, ::-1])
             try:
-                cv2_imshow(out.get_image()[:, :, ::-1])
-            except:
                 cv2.imshow(out.get_image()[:, :, ::-1])
+            except:
+                pass
+
 
 
 

@@ -34,6 +34,9 @@ argparser = argparse.ArgumentParser()
 argparser.add_argument("-t", "--trainer", choices=["simple", "default", "custom"])
 argparser.add_argument("-b", "--bitmap_path")
 argparser.add_argument("-i", "--images_path")
+argparser.add_argument("-e", "--epochs", type=int, default=10)
+argparser.add_argument("-p", "--eval_period", type=int, default=5)
+argparser.add_argument("-s", "--batch_size", type=int, default=4)
 argparser.add_argument("--sample", action="store_true")
 argparser.add_argument("--resume", action="store_true")
 argparser.add_argument("-s", "--shrink", default=0, type=int)
@@ -49,6 +52,10 @@ bitmap_path = args.bitmap_path
 images_path = args.images_path
 
 resume = args.resume
+
+epochs = args.epochs
+batch_size = args.batch_size
+eval_period = args.eval_period
 
 ########################## SUB DATASET ###############################################
 
@@ -153,16 +160,15 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    epochs = 1
-    batch_size = 4
-
-    trainer = MyTrainer()
+    trainer = MyTrainer(eval_period=eval_period)
 
     trainer.build_model(cfg)
 
     trainer.set_datasets(trainset="train", valset="val", testset="./subdataset/imgs/val")
 
     trainer.train(epochs, batch_size, resume=resume)
+
+    trainer.test()
 
 
 
