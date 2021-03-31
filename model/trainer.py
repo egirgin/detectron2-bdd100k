@@ -55,11 +55,13 @@ from utils.dataloader import get_dataset_dicts
 
 class MyTrainer:
 
-    def __init__(self, eval_period = 5):
+    def __init__(self, experiment_name, eval_period = 5, checkpoint_period = 100):
         self.testset = None
         self.cfg = None
         self.model = None
         self.eval_period = eval_period
+        self.checkpoint_period = checkpoint_period
+        self.name = experiment_name
 
     def build_model(self, cfg):
 
@@ -134,8 +136,8 @@ class MyTrainer:
                 start_iter = 0
 
             periodic_checkpointer = PeriodicCheckpointer(
-                checkpointer, self.cfg.SOLVER.CHECKPOINT_PERIOD,
-                max_iter=train_iter, max_to_keep=3, file_prefix="test"
+                checkpointer, self.checkpoint_period,
+                max_iter=train_iter, max_to_keep=3, file_prefix=self.name
             )
 
             with EventStorage(start_iter=start_iter) as storage:

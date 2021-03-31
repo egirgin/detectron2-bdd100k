@@ -37,6 +37,7 @@ argparser.add_argument("-i", "--images_path")
 argparser.add_argument("-e", "--epochs", type=int, default=10)
 argparser.add_argument("-ep", "--eval_period", type=int, default=5)
 argparser.add_argument("-bs", "--batch_size", type=int, default=4)
+argparser.add_argument("-cp", "--checkpoint_period", type=int, default=1)
 argparser.add_argument("--sample", action="store_true")
 argparser.add_argument("--resume", action="store_true")
 argparser.add_argument("-s", "--shrink", default=0, type=int)
@@ -160,7 +161,7 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    trainer = MyTrainer(eval_period=eval_period)
+    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.chekpoint_period, experiment_name="test_emre")
 
     trainer.build_model(cfg)
 
