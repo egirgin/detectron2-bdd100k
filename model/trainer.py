@@ -1,61 +1,40 @@
 import logging
 import os
-import shutil
-from collections import OrderedDict
-from tqdm import tqdm
+
 import random
 import cv2
 
-import numpy as np
 import torch
-from torch.nn.parallel import DistributedDataParallel
 
-import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer, PeriodicCheckpointer
-from detectron2.config import get_cfg
 from detectron2.data import (
     MetadataCatalog,
     build_detection_test_loader,
     build_detection_train_loader,
     get_detection_dataset_dicts,
-    DatasetMapper,
-    DatasetCatalog,
+
 )
 
 from utils.dataloader import mapper as custom_mapper
 
-from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
-from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
+from detectron2.engine import default_writers
 from detectron2.engine.defaults import DefaultPredictor
 from detectron2.evaluation import (
-    CityscapesInstanceEvaluator,
-    CityscapesSemSegEvaluator,
     COCOEvaluator,
-    COCOPanopticEvaluator,
-    DatasetEvaluators,
-    LVISEvaluator,
-    PascalVOCDetectionEvaluator,
-    SemSegEvaluator,
     inference_on_dataset,
-    print_csv_format,
 )
-from detectron2.utils.visualizer import Visualizer, ColorMode
+from detectron2.utils.visualizer import Visualizer
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
 from detectron2.utils.visualizer import ColorMode
 
-
 logger = logging.getLogger("detectron2")
-
-from utils.dataloader import get_dataset_dicts
-
-# TODO: checkpointer, rms loss, LR scheduler, tensorboard accuracy printing, resume (both weights and the dataset),
 
 
 class MyTrainer:
 
-    def __init__(self, experiment_name, eval_period = 5, checkpoint_period = 100):
+    def __init__(self, experiment_name, eval_period=5, checkpoint_period=100):
         self.testset = None
         self.cfg = None
         self.model = None
@@ -84,7 +63,6 @@ class MyTrainer:
         self.build_model(self.cfg)
 
     def train(self, epochs, batch_size, resume=False):
-        global start_iter
         if self.model:
             # Switch to training mode
             self.model.train()
@@ -93,7 +71,7 @@ class MyTrainer:
             optimizer = build_optimizer(self.cfg, self.model)  # Returns SGD
             # optimizer = torch.optim.Adam()
 
-            scheduler = build_lr_scheduler(self.cfg, optimizer) # warm up scheduler
+            scheduler = build_lr_scheduler(self.cfg, optimizer)  # warm up scheduler
 
             train_set = get_detection_dataset_dicts("train", filter_empty=False)
 
@@ -116,7 +94,6 @@ class MyTrainer:
 
             writers = default_writers(self.cfg.OUTPUT_DIR, train_iter)
 
-
             checkpointer = DetectionCheckpointer(
                 self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer, scheduler=scheduler
             )
@@ -135,7 +112,7 @@ class MyTrainer:
                 start_iter = 0
 
             periodic_checkpointer = PeriodicCheckpointer(
-                checkpointer, self.checkpoint_period*train_size,
+                checkpointer, self.checkpoint_period * train_size,
                 max_iter=train_iter, max_to_keep=3, file_prefix=self.name
             )
 
@@ -165,8 +142,7 @@ class MyTrainer:
 
                     optimizer.step()
 
-
-                    if (iteration) % (self.eval_period * train_size) == 0:
+                    if (iteration+1) % (self.eval_period * train_size) == 0:
                         eval_acc, eval_loss = self.eval(acc_loader, val_loader)
 
                         print(eval_acc)
@@ -215,7 +191,8 @@ class MyTrainer:
         return eval_results, total_loss
 
     def test(self):
-        self.cfg.MODEL.WEIGHTS = os.path.join(self.cfg.OUTPUT_DIR, "checkpoint/model_final.pth")  # path to the model we just trained
+        self.cfg.MODEL.WEIGHTS = os.path.join(self.cfg.OUTPUT_DIR,
+                                              "checkpoint/model_final.pth")  # path to the model we just trained
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
 
         predictor = DefaultPredictor(self.cfg)
@@ -227,7 +204,6 @@ class MyTrainer:
                            metadata=MetadataCatalog.get("train"),
                            scale=0.5,
                            instance_mode=ColorMode.IMAGE_BW
-                           # remove the colors of unsegmented pixels. This option is only available for segmentation models
                            )
             out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
@@ -235,11 +211,8 @@ class MyTrainer:
 
             cv2.imwrite(self.cfg.OUTPUT_DIR + "/results/{}".format(img), out.get_image()[:, :, ::-1])
             try:
-                cv2.imshow(out.get_image()[:, :, ::-1])
+                cv2.imshow(img, out.get_image()[:, :, ::-1])
             except:
                 pass
-
-
-
 
         pass
