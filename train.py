@@ -111,22 +111,6 @@ if show_sample:
 cfg = get_cfg()
 
 cfg.merge_from_file("config.yaml")
-"""
-cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.DATASETS.TRAIN = ("train",)
-cfg.DATASETS.TEST = ("val")
-cfg.DATALOADER.NUM_WORKERS = 1
-cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS = False
-cfg.MODEL.BACKBONE.FREEZE_AT = 0
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  # Let training initialize from model zoo
-cfg.SOLVER.IMS_PER_BATCH = 2
-cfg.SOLVER.BASE_LR = 0.00025  # pick a good LR
-cfg.SOLVER.MAX_ITER = 300    # 300 iterations seems good enough for this toy dataset; you will need to train longer for a practical dataset
-cfg.SOLVER.STEPS = []        # do not decay learning rate
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 2   # faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3  # only has one class (ballon). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
-# NOTE: this config means the number of classes, but a few popular unofficial tutorials incorrect uses num_classes+1 here.
-"""
 if not torch.cuda.is_available():
     cfg.MODEL.DEVICE = "cpu"
 
@@ -162,7 +146,7 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.chekpoint_period, experiment_name=args.name)
+    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.checkpoint_period, experiment_name=args.name)
 
     trainer.build_model(cfg)
 
