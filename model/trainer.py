@@ -115,10 +115,10 @@ class MyTrainer:
                 checkpointer, self.checkpoint_period * train_size,
                 max_iter=train_iter, max_to_keep=3, file_prefix=self.name
             )
-
+            print("One epoch takes {} iterations.".format(train_size))
             with EventStorage(start_iter=start_iter) as storage:
                 for data, iteration in zip(train_loader, range(start_iter, train_iter)):
-                    print("One epoch takes {} iterations.".format(train_size))
+
                     loss_dict = self.model(data)
 
                     # squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
