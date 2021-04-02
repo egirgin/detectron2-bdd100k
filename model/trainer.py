@@ -35,7 +35,6 @@ logger = logging.getLogger("detectron2")
 class MyTrainer:
 
     def __init__(self, experiment_name, eval_period=5, checkpoint_period=100):
-        self.testset = None
         self.cfg = None
         self.model = None
         self.eval_period = eval_period
@@ -50,10 +49,7 @@ class MyTrainer:
 
         return self.model
 
-    def set_datasets(self, trainset=None, valset=None, testset=None):
-        if testset:
-            self.testset = testset
-
+    def set_datasets(self, trainset=None, valset=None):
         if trainset:
             self.cfg.DATASETS.TRAIN = (trainset,)
 
@@ -90,12 +86,12 @@ class MyTrainer:
             acc_loader = build_detection_test_loader(self.cfg, self.cfg.DATASETS.TEST[0])
 
             self.evaluator = COCOEvaluator(self.cfg.DATASETS.TEST[0], ("bbox", "segm",), False,
-                                           output_dir=self.cfg.OUTPUT_DIR + "/eval")
+                                           output_dir=self.cfg.OUTPUT_DIR + "/" + self.name + "/eval")
 
-            writers = default_writers(self.cfg.OUTPUT_DIR, train_iter)
+            writers = default_writers(self.cfg.OUTPUT_DIR + "/" + self.name, train_iter)
 
             checkpointer = DetectionCheckpointer(
-                self.model, self.cfg.OUTPUT_DIR + "/checkpoint", optimizer=optimizer, scheduler=scheduler
+                self.model, self.cfg.OUTPUT_DIR + "/" + self.name + "/checkpoint", optimizer=optimizer, scheduler=scheduler
             )
             if resume:
                 if checkpointer.has_checkpoint():
@@ -109,6 +105,7 @@ class MyTrainer:
                     print("Error! There is not any checkpoints. Training from scratch!")
 
             else:
+                print("Training from scratch with random initialization!")
                 start_iter = 0
 
             periodic_checkpointer = PeriodicCheckpointer(
@@ -190,29 +187,3 @@ class MyTrainer:
 
         return eval_results, total_loss
 
-    def test(self):
-        self.cfg.MODEL.WEIGHTS = os.path.join(self.cfg.OUTPUT_DIR,
-                                              "checkpoint/model_final.pth")  # path to the model we just trained
-        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # set a custom testing threshold
-
-        predictor = DefaultPredictor(self.cfg)
-
-        for img in random.sample(os.listdir(self.testset), 3):
-            im = cv2.imread(self.testset + "/" + img)
-            outputs = predictor(im)
-            v = Visualizer(im[:, :, ::-1],
-                           metadata=MetadataCatalog.get("train"),
-                           scale=0.5,
-                           instance_mode=ColorMode.IMAGE_BW
-                           )
-            out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-
-            os.makedirs(self.cfg.OUTPUT_DIR + "/results", exist_ok=True)
-
-            cv2.imwrite(self.cfg.OUTPUT_DIR + "/results/{}".format(img), out.get_image()[:, :, ::-1])
-            try:
-                cv2.imshow(img, out.get_image()[:, :, ::-1])
-            except:
-                pass
-
-        pass

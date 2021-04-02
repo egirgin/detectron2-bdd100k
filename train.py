@@ -2,15 +2,15 @@ import os
 import shutil
 import random
 import argparse
+from datetime import datetime
 
 import numpy as np
 import cv2
-
 import torch
-
 
 import detectron2
 from detectron2.utils.logger import setup_logger
+
 setup_logger()
 
 from detectron2 import model_zoo
@@ -18,11 +18,9 @@ from detectron2.engine import DefaultPredictor, DefaultTrainer, SimpleTrainer
 from detectron2.config import get_cfg
 from detectron2.modeling import build_model
 from detectron2.solver import build_optimizer
-
 from detectron2.utils.visualizer import Visualizer, ColorMode
 from detectron2.data import MetadataCatalog, DatasetCatalog, build_detection_train_loader, build_detection_test_loader
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-
 
 from utils.dataloader import get_dataset_dicts, create_subdataset
 from model.trainer import MyTrainer
@@ -31,8 +29,8 @@ from model.trainer import MyTrainer
 
 argparser = argparse.ArgumentParser()
 
-argparser.add_argument("-n", "--name")
-argparser.add_argument("-t", "--trainer", choices=["simple", "default", "custom"])
+argparser.add_argument("-n", "--name", default="")
+argparser.add_argument("-t", "--trainer", choices=["simple", "default", "custom"], default="custom")
 argparser.add_argument("-b", "--bitmap_path")
 argparser.add_argument("-i", "--images_path")
 argparser.add_argument("-e", "--epochs", type=int, default=10)
@@ -44,6 +42,11 @@ argparser.add_argument("--resume", action="store_true")
 argparser.add_argument("-s", "--shrink", default=0, type=int)
 
 args = argparser.parse_args()
+
+if args.name == "":
+    exp_name = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+else:
+    exp_name = args.name
 
 shrink = args.shrink
 
@@ -83,14 +86,16 @@ except:
 # Trainset
 print("Creating trainset...")
 
-DatasetCatalog.register("train", lambda images_path=images_path : get_dataset_dicts(images_path + "/train", bitmap_path + "/train"))
+DatasetCatalog.register("train", lambda images_path=images_path: get_dataset_dicts(images_path + "/train",
+                                                                                   bitmap_path + "/train"))
 MetadataCatalog.get("train").set(thing_classes=["main_path", "error", "alt_path"])
 metadata_train = MetadataCatalog.get("train")
 
 # Valset
 print("Creating valset...")
 
-DatasetCatalog.register("val", lambda images_path=images_path : get_dataset_dicts(images_path  + "/val", bitmap_path + "/val"))
+DatasetCatalog.register("val",
+                        lambda images_path=images_path: get_dataset_dicts(images_path + "/val", bitmap_path + "/val"))
 MetadataCatalog.get("val").set(thing_classes=["main_path", "error", "alt_path"])
 metadata_val = MetadataCatalog.get("val")
 
@@ -102,7 +107,7 @@ if show_sample:
         out = visualizer.draw_dataset_dict(d)
         cv2.imshow(d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
         os.makedirs("subdataset/samples", exist_ok=True)
-        cv2.imwrite("subdataset/samples/"+d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
+        cv2.imwrite("subdataset/samples/" + d["file_name"].split("/")[-1], out.get_image()[:, :, ::-1])
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -117,11 +122,10 @@ if not torch.cuda.is_available():
 if resume:
     pass
 else:
-    shutil.rmtree(cfg.OUTPUT_DIR, ignore_errors=True)
+    shutil.rmtree(cfg.OUTPUT_DIR + "/" + exp_name, ignore_errors=True)
 
-
-os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-os.makedirs(cfg.OUTPUT_DIR + "/checkpoint", exist_ok=True)
+os.makedirs(cfg.OUTPUT_DIR + "/" + exp_name, exist_ok=True)
+os.makedirs(cfg.OUTPUT_DIR + "/" + exp_name + "/checkpoint", exist_ok=True)
 
 if args.trainer == "simple":
 
@@ -146,21 +150,11 @@ elif args.trainer == "default":
     print(inference_on_dataset(trainer.model, val_loader, evaluator))
 elif args.trainer == "custom":
 
-    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.checkpoint_period, experiment_name=args.name)
+    trainer = MyTrainer(eval_period=eval_period, checkpoint_period=args.checkpoint_period, experiment_name=exp_name)
 
     trainer.build_model(cfg)
 
-    trainer.set_datasets(trainset="train", valset="val", testset="./subdataset/imgs/val")
+    trainer.set_datasets(trainset="train", valset="val")
 
     trainer.train(epochs, batch_size, resume=resume)
-
-    trainer.test()
-
-
-
-
-
-
-
-
 
