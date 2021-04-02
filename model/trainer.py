@@ -132,7 +132,7 @@ class MyTrainer:
                     for key, value in loss_dict.items():
                         storage.put_scalar("TrainLoss/{}".format(key.upper()), value / batch_size)
 
-                    storage.put_scalar("TotalLoss/Trainloss", losses)
+                    storage.put_scalar("RMSLoss/Trainloss", losses)
 
                     storage.put_scalar("lr", optimizer.param_groups[0]["lr"])
 
@@ -143,6 +143,9 @@ class MyTrainer:
                     losses.backward()
 
                     optimizer.step()
+
+                    periodic_checkpointer.step(iteration)
+                    scheduler.step()
 
                     if (iteration != 0) and (iteration % (self.eval_period * train_size) == 0):
                         eval_acc, eval_loss, min_img = self.eval(acc_loader, val_loader)
@@ -163,7 +166,7 @@ class MyTrainer:
 
                         val_rms = sum([loss**2 for loss in eval_loss.values()])/len(eval_loss.values())
 
-                        storage.put_scalar("TotalLoss/Valloss", val_rms)
+                        storage.put_scalar("RMSLoss/Valloss", val_rms)
 
                         if checkpointer.has_checkpoint():
                             latest_str = checkpointer.get_checkpoint_file()
@@ -198,8 +201,7 @@ class MyTrainer:
                     for writer in writers:
                         writer.write()
 
-                    periodic_checkpointer.step(iteration)
-                    scheduler.step()
+
 
         else:
             print("Please build the model first!")
