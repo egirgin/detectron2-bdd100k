@@ -91,7 +91,8 @@ class MyTrainer:
             writers = default_writers(self.cfg.OUTPUT_DIR + "/" + self.name, train_iter)
 
             checkpointer = DetectionCheckpointer(
-                self.model, self.cfg.OUTPUT_DIR + "/" + self.name + "/checkpoint", optimizer=optimizer, scheduler=scheduler
+                self.model, self.cfg.OUTPUT_DIR + "/" + self.name + "/checkpoint", optimizer=optimizer,
+                scheduler=scheduler
             )
             if resume:
                 if checkpointer.has_checkpoint():
@@ -126,7 +127,7 @@ class MyTrainer:
                     for key, value in loss_dict.items():
                         storage.put_scalar("TrainLoss/".format(key), value / batch_size)
 
-                    storage.put_scalar("RMSloss", losses)
+                    storage.put_scalar("TotalLoss/Trainloss", losses)
 
                     storage.put_scalar("lr", optimizer.param_groups[0]["lr"])
 
@@ -138,7 +139,7 @@ class MyTrainer:
 
                     optimizer.step()
 
-                    if (iteration+1) % (self.eval_period * train_size) == 0:
+                    if (iteration != 0) and (iteration % (self.eval_period * train_size) == 0):
                         eval_acc, eval_loss, min_img = self.eval(acc_loader, val_loader)
 
                         print(eval_acc)
@@ -155,13 +156,19 @@ class MyTrainer:
                         for key, value in eval_loss.items():
                             storage.put_scalar("ValLoss/{}".format(key), value / val_size)
 
+                        storage.put_scalar("TotalLoss/Valloss", sum(eval_loss.values()))
+
                         if checkpointer.has_checkpoint():
                             latest_str = checkpointer.get_checkpoint_file()
                             print("Loading checkpoint: {}".format(latest_str))
                             self.cfg.MODEL.WEIGHTS = latest_str
                             self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
                             predictor = DefaultPredictor(self.cfg)
-                            """
+
+                            min_img = min_img.permute(1, 2, 0)
+
+                            min_img = min_img.detach().cpu().numpy()
+
                             outputs = predictor(min_img)
                             if len(outputs["instances"].get_fields()["pred_boxes"]) == 0:
                                 print("No instances found :(")
@@ -173,9 +180,9 @@ class MyTrainer:
                                            )
                             out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
-
                             storage.put_image("Iter:{}".format(iteration), out.get_image()[:, :, ::-1])
-                            """
+                        else:
+                            print("No checkpoint found! Skipping this epoch.")
 
                     storage.step()
 
@@ -196,20 +203,18 @@ class MyTrainer:
             self.evaluator)
 
         total_loss = {}
-        min_loss = float("inf")
+        min_loss = 999999999
 
         # self.model.eval()
         with torch.no_grad():
             for val in val_loader:
-                print(val.keys())
                 loss_dict = self.model(val)
 
-                if sum(loss_dict) < min_loss:
-                    min_img = val
+                if sum(loss_dict.values()) < min_loss:
+                    min_img = val[0]["image"]
 
                 total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
 
         # self.model.train()
 
         return eval_results, total_loss, min_img
-
