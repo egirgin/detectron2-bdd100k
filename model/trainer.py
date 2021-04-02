@@ -1,5 +1,6 @@
 import logging
 import os
+import math
 
 import random
 import cv2
@@ -120,11 +121,13 @@ class MyTrainer:
 
                     loss_dict = self.model(data)
 
+                    losses = sum([loss**2 for loss in loss_dict.values()])/len(loss_dict.values()) #RMS Loss
+
                     # squared = torch.FloatTensor([torch.square(x) for x in list(loss_dict.values())])
 
                     # losses = torch.sqrt(torch.mean(squared))
 
-                    losses = sum(loss_dict.values())
+                    # losses = sum(loss_dict.values()) # ABS Loss
 
                     for key, value in loss_dict.items():
                         storage.put_scalar("TrainLoss/{}".format(key.upper()), value / batch_size)
@@ -158,7 +161,9 @@ class MyTrainer:
                         for key, value in eval_loss.items():
                             storage.put_scalar("ValLoss/{}".format(key.upper()), value / val_size)
 
-                        storage.put_scalar("TotalLoss/Valloss", sum(eval_loss.values()))
+                        val_rms = sum([loss**2 for loss in eval_loss.values()])/len(eval_loss.values())
+
+                        storage.put_scalar("TotalLoss/Valloss", val_rms)
 
                         if checkpointer.has_checkpoint():
                             latest_str = checkpointer.get_checkpoint_file()
@@ -174,7 +179,7 @@ class MyTrainer:
                             outputs = predictor(min_img)
                             if len(outputs["instances"].get_fields()["pred_boxes"]) == 0:
                                 print("No instances found :(")
-                                #continue
+                                continue
                             v = Visualizer(min_img[:, :, ::-1],
                                            metadata=MetadataCatalog.get("val"),
                                            scale=0.5,
