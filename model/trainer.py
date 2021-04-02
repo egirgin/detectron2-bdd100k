@@ -98,7 +98,6 @@ class MyTrainer:
                     latest_str = checkpointer.get_checkpoint_file()
                     print("Loading checkpoint: {}".format(latest_str))
                     load = checkpointer.resume_or_load(latest_str, resume=resume)
-                    print(load.keys())
                     start_iter = load["iteration"] + 1
                     print("Starting Iteration : {}".format(start_iter))
                 else:
@@ -125,7 +124,7 @@ class MyTrainer:
                     losses = sum(loss_dict.values())
 
                     for key, value in loss_dict.items():
-                        storage.put_scalar(key, value / batch_size)
+                        storage.put_scalar("TrainLoss/".format(key), value / batch_size)
 
                     storage.put_scalar("RMSloss", losses)
 
@@ -140,7 +139,7 @@ class MyTrainer:
                     optimizer.step()
 
                     if (iteration+1) % (self.eval_period * train_size) == 0:
-                        eval_acc, eval_loss = self.eval(acc_loader, val_loader)
+                        eval_acc, eval_loss, min_img = self.eval(acc_loader, val_loader)
 
                         print(eval_acc)
                         print(eval_loss)
@@ -155,6 +154,28 @@ class MyTrainer:
 
                         for key, value in eval_loss.items():
                             storage.put_scalar("ValLoss/{}".format(key), value / val_size)
+
+                        if checkpointer.has_checkpoint():
+                            latest_str = checkpointer.get_checkpoint_file()
+                            print("Loading checkpoint: {}".format(latest_str))
+                            self.cfg.MODEL.WEIGHTS = latest_str
+                            self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+                            predictor = DefaultPredictor(self.cfg)
+                            """
+                            outputs = predictor(min_img)
+                            if len(outputs["instances"].get_fields()["pred_boxes"]) == 0:
+                                print("No instances found :(")
+                                continue
+                            v = Visualizer(min_img[:, :, ::-1],
+                                           metadata=MetadataCatalog.get("val"),
+                                           scale=0.5,
+                                           instance_mode=ColorMode.IMAGE_BW
+                                           )
+                            out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+
+
+                            storage.put_image("Iter:{}".format(iteration), out.get_image()[:, :, ::-1])
+                            """
 
                     storage.step()
 
@@ -175,15 +196,20 @@ class MyTrainer:
             self.evaluator)
 
         total_loss = {}
+        min_loss = float("inf")
 
         # self.model.eval()
         with torch.no_grad():
             for val in val_loader:
+                print(val.keys())
                 loss_dict = self.model(val)
+
+                if sum(loss_dict) < min_loss:
+                    min_img = val
 
                 total_loss = {k: total_loss.get(k, 0) + loss_dict.get(k, 0) for k in set(total_loss) | set(loss_dict)}
 
         # self.model.train()
 
-        return eval_results, total_loss
+        return eval_results, total_loss, min_img
 

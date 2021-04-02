@@ -1,0 +1,1 @@
+python test.py --weights "./output/bdd100k/checkpoint/last_checkpoint" --output "./output/bdd100k/results" --images "./subdataset/imgs/val"
