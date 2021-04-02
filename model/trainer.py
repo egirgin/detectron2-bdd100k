@@ -3,6 +3,8 @@ import os
 
 import random
 import cv2
+from PIL import Image
+import numpy as np
 
 import torch
 
@@ -125,7 +127,7 @@ class MyTrainer:
                     losses = sum(loss_dict.values())
 
                     for key, value in loss_dict.items():
-                        storage.put_scalar("TrainLoss/".format(key), value / batch_size)
+                        storage.put_scalar("TrainLoss/{}".format(key.upper()), value / batch_size)
 
                     storage.put_scalar("TotalLoss/Trainloss", losses)
 
@@ -154,7 +156,7 @@ class MyTrainer:
                         storage.put_scalar("Accuracy/segm_mAP_alt_pth", eval_acc["segm"]["AP-alt_path"])
 
                         for key, value in eval_loss.items():
-                            storage.put_scalar("ValLoss/{}".format(key), value / val_size)
+                            storage.put_scalar("ValLoss/{}".format(key.upper()), value / val_size)
 
                         storage.put_scalar("TotalLoss/Valloss", sum(eval_loss.values()))
 
@@ -172,7 +174,7 @@ class MyTrainer:
                             outputs = predictor(min_img)
                             if len(outputs["instances"].get_fields()["pred_boxes"]) == 0:
                                 print("No instances found :(")
-                                continue
+                                #continue
                             v = Visualizer(min_img[:, :, ::-1],
                                            metadata=MetadataCatalog.get("val"),
                                            scale=0.5,
@@ -180,7 +182,9 @@ class MyTrainer:
                                            )
                             out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
-                            storage.put_image("Iter:{}".format(iteration), out.get_image()[:, :, ::-1])
+                            img = np.transpose(out.get_image(), (2, 0, 1))
+
+                            storage.put_image("Iter:{}".format(iteration), img)
                         else:
                             print("No checkpoint found! Skipping this epoch.")
 
