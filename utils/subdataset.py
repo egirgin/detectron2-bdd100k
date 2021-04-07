@@ -1,7 +1,7 @@
 import os
 import argparse
 
-from utils.dataloader import create_subdataset
+from dataloader import create_subdataset
 
 argparser = argparse.ArgumentParser()
 
