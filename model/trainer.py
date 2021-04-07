@@ -192,6 +192,10 @@ class MyTrainer:
 
                             img = np.transpose(out.get_image(), (2, 0, 1))
 
+                            cv2.imwrite(
+                                self.cfg.OUTPUT_DIR + "/" + self.name + "/prediction_{}.png".format(iteration),
+                                img)
+
                             storage.put_image("Iter:{}".format(iteration), img)
                         else:
                             print("No checkpoint found! Skipping this epoch.")

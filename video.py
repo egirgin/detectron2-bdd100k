@@ -72,20 +72,25 @@ if __name__ == '__main__':
 
         outputs = predictor(frame)
         if len(outputs["instances"].get_fields()["pred_boxes"]) == 0:
+            cv2.imshow('cam0', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
             continue
+
         else:
             print("{} instances found !!!".format(len(outputs["instances"].get_fields()["pred_boxes"])))
 
-        v = Visualizer(frame[:, :, ::-1],
-                       metadata=MetadataCatalog.get("test"),
-                       scale=0.5,
-                       instance_mode=ColorMode.IMAGE_BW
-                       )
-        out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+            v = Visualizer(frame[:, :, ::-1],
+                           metadata=MetadataCatalog.get("cam"),
+                           scale=0.5,
+                           instance_mode=ColorMode.IMAGE_BW
+                           )
+            out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
-        cv2.imshow('cam0', out.get_image())
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            cv2.imshow('cam0', out.get_image())
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     my_cap.close_device()
     cv2.destroyAllWindows()
