@@ -36,7 +36,7 @@ def create_subdataset(images_path, labels_path, output_path, n=10):
         os.mkdir(output_path + "/imgs/val")
         os.mkdir(output_path + "/bitmaps/val")
 
-    for img in random.sample(os.listdir(images_path + "/train"), n):
+    for img in random.sample(os.listdir(images_path + "/train"), 5*n):
         shutil.copy(images_path + "/train/" + img, output_path + "/imgs/train")
         shutil.copy(labels_path + "/train/" + img[:-4] + "_drivable_color.png", output_path + "/bitmaps/train")
 

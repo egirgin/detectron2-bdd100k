@@ -26,19 +26,21 @@ class Cam:
         self.cap.release()
 
 
-flag = 0
+
 my_cap = Cam(0)
 my_cap.install()
 
 while (True):
 
     ret, frame = my_cap.get_frame()
+    frame = cv2.flip(frame, 1)
     cv2.imshow('cam0', frame)
 
-    time.sleep(0.25)
+    #time.sleep(0.25)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 my_cap.close_device()
 cv2.destroyAllWindows()
+
