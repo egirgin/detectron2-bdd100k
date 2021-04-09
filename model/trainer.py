@@ -164,7 +164,7 @@ class MyTrainer:
                         for key, value in eval_loss.items():
                             storage.put_scalar("ValLoss/{}".format(key.upper()), value / val_size)
 
-                        val_rms = sum([loss**2 for loss in eval_loss.values()])/len(eval_loss.values())
+                        val_rms = sum([loss**2 for loss in eval_loss.values()])/len(eval_loss.values())/val_size
 
                         storage.put_scalar("RMSLoss/Valloss", val_rms)
 
