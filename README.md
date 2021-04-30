@@ -47,5 +47,23 @@ exit(0)  # After installation, you need to "restart runtime" in Colab. This line
 ```bash
 source run.sh
 ```
+# Docker
+
+```bash
+docker build -t detectron2-bdd100k .
+```
+
+```bash
+docker run --gpus all detectron2-bdd100k
+```
+add -it to have interactive pseudo-tty
+
+```bash
+docker cp <containerId>:/home/appuser/detectron2-bdd100k/output .
+```
+sample: 
+``` bash
+docker cp d362659da5fc:/home/appuser/detectron2-bdd100k/output .
+```
 
 
