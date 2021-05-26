@@ -52,6 +52,8 @@ source run.sh
 ```bash
 docker build -t detectron2-bdd100k .
 ```
+add --no-cache flag if you do not want to use pre-downloaded images 
+
 
 ```bash
 docker run --gpus all -d detectron2-bdd100k bash run.sh
