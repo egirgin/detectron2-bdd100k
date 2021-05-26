@@ -25,6 +25,8 @@ RUN pip3 install torch torchvision torchaudio
 
 RUN pip install pyyaml==5.1 opencv-python
 
+RUN pip list
+
 RUN python -m pip install detectron2 -f https://dl.fbaipublicfiles.com/detectron2/wheels/cu102/torch1.8/index.html
 
 ENV FORCE_CUDA="1"
@@ -33,8 +35,4 @@ ARG TORCH_CUDA_ARCH_LIST="Kepler;Kepler+Tesla;Maxwell;Maxwell+Tegra;Pascal;Volta
 
 ENV TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}"
 
-RUN git clone https://github.com/egirgin/detectron2-bdd100k.git
-
-WORKDIR /home/appuser/detectron2-bdd100k
-
-RUN source run.sh
+COPY ./detectron2-bdd100k .
