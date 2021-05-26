@@ -69,7 +69,7 @@ sample
 ```bash
 docker logs -f d362659da5fc
 ```
-
+Get the output file (checkpoints, tensorboard etc.)
 ```bash
 docker cp <containerId>:/home/appuser/detectron2-bdd100k/output .
 ```
