@@ -54,9 +54,19 @@ docker build -t detectron2-bdd100k .
 ```
 
 ```bash
-docker run --gpus all detectron2-bdd100k
+docker run --gpus all -d detectron2-bdd100k bash run.sh
 ```
+-d detaches you from the container
 add -it to have interactive pseudo-tty
+
+check logs (stdout) of the progrom with the command
+```bash
+docker logs -f <containerId>
+```
+sample
+```bash
+docker logs -f d362659da5fc
+```
 
 ```bash
 docker cp <containerId>:/home/appuser/detectron2-bdd100k/output .
