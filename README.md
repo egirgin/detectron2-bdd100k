@@ -63,7 +63,7 @@ add -it to have interactive pseudo-tty
 
 **alternatively**
 ```bash
-docker run --gpus all detectron2-bdd100k python train.py --trainer "custom" --bitmap_path "./subdataset/bitmaps" --images_path "./subdataset/imgs" --epochs 200 --batch_size 32 --eval_period 5 --checkpoint_period 5 --name "bdd100k"
+docker run --gpus all -d detectron2-bdd100k python train.py --trainer "custom" --bitmap_path "./subdataset/bitmaps" --images_path "./subdataset/imgs" --epochs 200 --batch_size 32 --eval_period 5 --checkpoint_period 5 --name "bdd100k"
 ```
 
 check logs (stdout) of the progrom with the command
