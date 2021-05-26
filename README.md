@@ -82,5 +82,5 @@ sample:
 ``` bash
 docker cp d362659da5fc:/home/appuser/output .
 ```
-
+You may use container name instead of container id
 
